@@ -1,0 +1,200 @@
+              Yarn setup in hadoop cluster
+
+############################################################
+
+   first to setup the cluster -->
+
+############################################################
+  
+    Required softwares are --> 
+
+1)-  Download  apache hadoop version  2.7 or later from  given below link
+
+https://archive.apache.org/dist/hadoop/core/
+
+2)-  Download jdk 1.8  from oracle  website 
+
+http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+
+3)-  Installing  apache  hadoop from tar
+
+[root@namenode hadoop]# tar  -xvzf  hadoop-2.7.3.tar.gz
+
+move this to /  for permission and security reason
+
+[root@namenode hadoop]#   mv  hadoop-2.7.3  /hadoop2
+
+Important : file must be look like this.
+
+4)-  setup java and hadoop paths in .bashrc file
+
+[root@station53 hadoop]# cat /root/.bashrc 
+# .bashrc
+
+# User specific aliases and functions
+
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+    . /etc/bashrc
+fi
+
+JAVA_HOME=/usr/java/jdk1.8.0_121
+HADOOP_HOME=/hadoop2
+PATH=$JAVA_HOME/bin:$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$PATH
+export PATH
+
+###########################################################################################################################################################
+
+Note :    you will find  files something like given below
+
+[root@namenode hadoop]# cd /hadoop2/etc/hadoop/
+[root@namenode hadoop]# ls
+capacity-scheduler.xml      hadoop-policy.xml        kms-log4j.properties        slaves
+configuration.xsl           hdfs-site.xml            kms-site.xml                ssl-client.xml.example
+container-executor.cfg      httpfs-env.sh            log4j.properties            ssl-server.xml.example
+core-site.xml               httpfs-log4j.properties  mapred-env.cmd              yarn-env.cmd
+hadoop-env.cmd              httpfs-signature.secret  mapred-env.sh               yarn-env.sh
+hadoop-env.sh               httpfs-site.xml          mapred-queues.xml.template  yarn-site.xml
+hadoop-metrics2.properties  kms-acls.xml             mapred-site.xml
+hadoop-metrics.properties   kms-env.sh               mapred-site.xml.template
+
+Now  setting  some important file for  HDFS cluster  : 
+
+1)-   In hadoop-env.sh  setup  jdk  path  then it will look like this
+
+[root@namenode hadoop]# cat   hadoop-env.sh 
+# The only required environment variable is JAVA_HOME.  All others are
+# set JAVA_HOME in this file, so that it is correctly defined on
+export JAVA_HOME=/usr/java/jdk1.8.0_121
+
+now setting up namenode and datanode :
+
+2)-  go to hadoop2/etc/hadoop
+
+3)-  hdfs-site.xml file should look like :
+
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+   
+<configuration>   
+                                                                                                                                   
+<property>                                                                                                                                           
+<name>dfs.namenode.name.dir</name>                                                                                                                   
+<value>/home/ec2-user/nn</value>                                                                                                                    
+</property>                                                                                                                                          
+                                                                                                                                                     
+<property>                                                                                                                                           
+<name>dfs.datanode.data.dir</name>                                                                                                                   
+<value>/home/ec2-user/datanode1</value>                                                                                                              
+</property>                                                                                                                                          
+                                                                                                                                                     
+</configuration>   
+
+4)-  core-site.xml should look like :
+
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+
+<property>
+<name>fs.defaultFS</name>
+<value>hdfs://192.168.10.120:9000</value>
+</property>
+
+</configuration>
+
+5)-  now format namenode and start the services of namenode and datanode using :
+
+hdfs namenode -format  
+                                                                                                                       
+hadoop-daemon.sh start namenode
+                                                                                                               
+hadoop-daemon.sh start datanode
+
+6)- check if these services started successfully by running "jps" command , output should be something like :
+
+6292 Jps                                                                                                                                             
+6214 DataNode                                                                                                                                        
+5852 NameNode 
+
+this implies that namenode and datanode are setup properly.
+
+note: allow 9000 port in security group
+
+#############################################################################
+
+Now  time  for  Yarn cluster setup :
+
+setting up resourcemanager and nodemanager :
+
+1) set up mapred-site.xml.template file using:
+
+[root@namenode hadoop]# mv mapred-site.xml.template mapred-site.xml
+
+[root@namenode hadoop]# cat  mapred-site.xml
+
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+<property>
+<name>mapreduce.framework.name</name>
+        <value>yarn</value>
+</property>
+</configuration>
+
+2) set up yarn-site.xml file using:
+
+<?xml version="1.0"?>                                                                                                                                
+                                                                                                                                           
+<configuration>                                                                                                                                      
+                                                                                                                                                     
+<!-- Site specific YARN configuration properties -->   
+                                                                                              
+<property>                                                                                                                                           
+<name>yarn.resourcemanager.resource-tracker.address</name>                                                                                           
+<value>resource_masterip:8025</value>                                                                               
+</property>                                                                                                                                          
+
+<property>                                                                                                                                           
+<name>yarn.resourcemanager.scheduler.address</name>                                                                                                  
+<value>resource_masterip:8030</value>                                                                               
+</property>                                                                                                                                          
+
+<property>                                                                                                                                           
+<name>yarn.resourcemanager.address</name>                                                                                                            
+<value>resource_masterip:8032</value>                                                                               
+</property>                                                                                                                                          
+
+<property>                                                                                                                                           
+<name>yarn.nodemanager.aux-services</name>                                                                                                           
+<value>mapreduce_shuffle</value>                                                                                                                     
+</property>                                                                                                                                          
+
+</configuration>   
+
+3) start the services of resourcemanager and nodemanager :
+
+[root@namenode hadoop]# yarn-daemon.sh  start resourcemanager     
+
+[root@namenode hadoop]# yarn-daemon.sh start nodemanager  
+
+4) check if they are working properly using "jps" :
+
+[root@namenode hadoop]# jps
+
+7248 ResourceManager                                                                                                                                 
+6214 DataNode                                                                                                                                        
+5852 NameNode                                                                                                                                        
+7580 Jps                                                                                                                                             
+7503 NodeManager  
+
+now it is ready to use go to hadoop2/share/hadoop/mapreduce and use yarn services .
+
+note: allow 8025,8032,8030 ports in the security group
+
+###################################################################################################################
